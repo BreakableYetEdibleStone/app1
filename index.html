@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Premium Expense Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- Desktop Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-badge"></div>
+      Expense Tracker
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item active">Dashboard</li>
+      <li class="nav-item">รายการบันทึก</li>
+      <li class="nav-item">หมวดหมู่</li>
+      <li class="nav-item">รายงาน</li>
+      <li class="nav-item">ตั้งค่า</li>
+    </ul>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-title">ภาพรวมการเงิน</h1>
+      <div style="display: flex; gap: 12px;">
+        <select id="period-select" class="form-control" style="width: auto;">
+          <option value="THIS_MONTH">เดือนนี้</option>
+          <option value="ALL">ทั้งหมด</option>
+        </select>
+        <button class="btn btn-primary" id="btn-add-txn">+ บันทึกรายการ</button>
+      </div>
+    </div>
+
+    <div id="loading-spinner" style="display:none; text-align:center; padding: 20px;">
+      กำลังโหลดข้อมูลจาก Google Sheets...
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-grid">
+      <div class="card card-blue">
+        <div class="card-label">ยอดเงินคงเหลือ</div>
+        <div class="card-value" id="val-balance">฿0.00</div>
+      </div>
+      <div class="card" style="border-left: 4px solid var(--status-success);">
+        <div class="card-label">รายรับรวม</div>
+        <div class="card-value" id="val-income">฿0.00</div>
+      </div>
+      <div class="card card-red">
+        <div class="card-label">รายจ่ายรวม</div>
+        <div class="card-value" id="val-expense">฿0.00</div>
+      </div>
+      <div class="card">
+        <div class="card-label">อัตราการออม</div>
+        <div class="card-value" id="val-savings">0%</div>
+      </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 32px;">
+      <div class="card">
+        <h3 style="font-size: 1rem; margin-bottom: 16px;">สัดส่วนรายจ่ายตามหมวดหมู่</h3>
+        <canvas id="chart-category"></canvas>
+      </div>
+    </div>
+
+    <!-- Transactions Data Table -->
+    <div class="card">
+      <h3 style="font-size: 1rem; margin-bottom: 16px;">รายการล่าสุด</h3>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>วันที่</th>
+              <th>ประเภท</th>
+              <th>หมวดหมู่</th>
+              <th>รายละเอียด</th>
+              <th style="text-align:right;">จำนวนเงิน</th>
+              <th style="text-align:center;">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="txn-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Mobile Bottom Navigation -->
+<nav class="mobile-nav">
+  <div class="nav-item active">ภาพรวม</div>
+  <div class="nav-item">รายการ</div>
+  <div class="nav-item" onclick="openTxnModal()">+ เพิ่ม</div>
+  <div class="nav-item">รายงาน</div>
+</nav>
+
+<!-- Modal Input Form -->
+<div class="modal-overlay" id="modal-txn">
+  <div class="modal-box">
+    <h2 id="modal-title" style="margin-bottom: 20px;">เพิ่มรายการใหม่</h2>
+    <form id="txn-form">
+      <input type="hidden" id="form-img-url">
+      
+      <div class="form-group">
+        <label class="form-label">วันที่</label>
+        <input type="date" class="form-control" id="form-date" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ประเภทธุรกรรม</label>
+        <select class="form-control" id="form-type" required>
+          <option value="รายจ่าย">รายจ่าย</option>
+          <option value="รายรับ">รายรับ</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">จำนวนเงิน (บาท)</label>
+        <input type="number" step="0.01" class="form-control" id="form-amount" placeholder="0.00" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">หมวดหมู่</label>
+        <select class="form-control" id="form-category" required></select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">รายละเอียด</label>
+        <input type="text" class="form-control" id="form-details" placeholder="เช่น ค่าอาหารกลางวัน">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ช่องทางชำระเงิน</label>
+
+        <select class="form-control" id="form-method">
+          <option value="โอนเงิน/QR">โอนเงิน/QR</option>
+          <option value="เงินสด">เงินสด</option>
+          <option value="บัตรเครดิต">บัตรเครดิต</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">บัญชีที่ใช้</label>
+        <input type="text" class="form-control" id="form-account" value="บัญชีหลัก">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">รูปภาพใบเสร็จ/หลักฐาน</label>
+        <input type="file" class="form-control" id="form-file" accept="image/*">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <textarea class="form-control" id="form-note" rows="2"></textarea>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+        <button type="button" class="btn btn-secondary" onclick="closeTxnModal()">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary" id="btn-save">บันทึกรายการ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
